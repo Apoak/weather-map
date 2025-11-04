@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- 
+      The <head> contains metadata — information *about* the page,
+      not visible to the user (title, CSS, libraries, etc.).
+    -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- The title appears in the browser tab -->
+    <title>Weather Map Project</title>
+
+    <!-- 
+      Link to Leaflet's CSS (this defines how the map and controls look)
+      This is pulled directly from the Leaflet CDN (hosted online)
+    -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <!-- 
+      Link to Leaflet-Geoman (the plugin that adds polygon drawing/editing controls)
+    -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.13.0/dist/leaflet-geoman.css"
+    />
+
+    <!-- Your own CSS file for map size and any custom styling -->
+    <link rel="stylesheet" href="style.css">
+  </head>
+
+  <body>
+    <!-- 
+      This <div> is the container where the map will appear.
+      The "id" must match the one you use in your JavaScript (L.map('map')).
+    -->
+    <div id="map"></div>
+
+    <!-- 
+      These script tags load external JavaScript libraries that power the map.
+      The order matters: Leaflet first, then plugins, then your own JS.
+    -->
+
+    <!-- Leaflet core library -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    ></script>
+
+    <!-- Leaflet-Geoman (polygon drawing/editing) -->
+    <script
+      src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.13.0/dist/leaflet-geoman.min.js"
+    ></script>
+
+    <!-- Your own JavaScript for map setup and logic -->
+    <script src="script.js"></script>
+  </body>
+</html>
