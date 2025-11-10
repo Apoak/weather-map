@@ -11,11 +11,101 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // Enable Geoman controls (for drawing polygons)
 map.pm.addControls({
   position: 'topleft',
-  drawPolygon: true,
+  drawPolygon: false,
+  drawMarker: true,
   editMode: true,
   dragMode: true,
   removalMode: true,
 });
+
+// --- Function to Fetch and Display Weather ---
+async function fetchAndDisplayWeather(layer) {
+    const coords = layer.getLatLng();
+    const lat = coords.lat;
+    const lon = coords.lng;
+
+    // Set a loading message in the popup
+    layer.setPopupContent("<h4>Fetching Weather...</h4>").openPopup();
+
+    try{
+        // 1. Call your Flask Weather API endpoint
+        const api_url = `http://127.0.0.1:5000/api/weather?lat=${lat}&lon=${lon}`;
+        const response = await fetch(api_url);
+
+        if (!response.ok){
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const weatherData = await response.json()
+
+        // 2. Generate detailed HTML forecast (simplified for this example)
+        const forecastHTML = generateForecastHTML(weatherData);
+
+        // 3. Update the popup content with the forecast
+        layer.setPopupContent(forecastHTML);
+
+    } catch (error) {
+        console.error('Weather fetching failed:', error);
+        layer.setPopupContent(`<h4>Error loading weather:</h4><p>${error.message}</p>`);
+    }
+} 
+
+function generateForecastHTML(data){
+    const hourly = data.hourly
+    // Just display the first few hours of temperature and precipitation FOR NOW
+    let html = `<h4>5-Day Forecast (GFS Model)</h4>
+                <p>Timezone: ${data.timezone}</p>
+                <hr>
+                <table>
+                    <tr><th>Time</th><th>Temp (°C)</th><th>Rain (mm)</th></tr>`;
+
+    for (let i = 0; i < 6; i++) { // Show 6 hours
+        const time = new Date(hourly.time[i]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        html += `<tr>
+                    <td>${time}</td>
+                    <td>${hourly.temperature_2m[i].toFixed(1)}</td>
+                    <td>${hourly.precipitation[i].toFixed(1)}</td>
+                 </tr>`;
+    }
+    html += `</table>`;
+    return html;
+}
+
+async function loadSavedMarkers() {
+    try {
+        // Fetch data from the new GET endpoint
+        const response = await fetch('http://127.0.0.1:5000/api/marker');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // The response will be an array of objects, not pure GeoJSON features yet
+        const storedMarkers = await response.json();
+
+        console.log(`Loaded ${storedMarkers.length} marker(s) from backend.`);
+
+        // Iterate over the loaded data
+        storedMarkers.forEach(markerData => {
+            // Create a new Leaflet marker object using the loaded coordinates
+            const marker = L.marker([markerData.lat, markerData.lon]).addTo(map);
+
+            // 1. NEW/FIXED: Bind the INITIAL static popup content to the loaded marker
+            const initialPopupContent = `Marker ${markerData.id} at: ${markerData.lat.toFixed(4)}, ${markerData.lon.toFixed(4)}`;
+            marker.bindPopup(initialPopupContent); // <--- THIS LINE IS CRUCIAL
+            
+            // 2. Attach the weather fetch logic to the 'popupopen' event
+            marker.on('popupopen', () => {
+                fetchAndDisplayWeather(marker);
+            });
+        });
+
+    } catch (error) {
+        console.error('Failed to load markers:', error);
+    }
+}
+
+loadSavedMarkers();
 
 // --- Function to Handle Layer Creation and Popups ---
 // e is the event that is passed to this function
@@ -73,41 +163,59 @@ function createCoordinatesPopup(layer){
 // Function to send GeoJSON to the Flask backend (Communicates with the back end)
 // using async signals that this has a promise. Used synchronously with await.
 
-async function savePolygonToBackend(layer) {
+async function saveMarkerToBackend(layer) {
     // 1. Convert the Leaflet layer to standard GeoJSON Feature format
-    const geojsonFeature = layer.toGeoJSON();
+    const coords = layer.getLatLng(); // Returns an object like: {lat: 34.05, lng: -118.25}
+    // 2. **CHANGE:** Construct the simple data payload
+    const markerData = {
+        // Use 'lat' and 'lon' keys to match the Flask backend's expected JSON format
+        lat: coords.lat, 
+        lon: coords.lng
+    };
 
+    // try block
     try {
-        const response = await fetch('http://127.0.0.1:5000/api/polygon', {
+        // request the response from backend
+        const response = await fetch('http://127.0.0.1:5000/api/marker', {
             // REST API
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             // The body is the JSON data being sent to the Flask server
-            body: JSON.stringify(geojsonFeature)
+            body: JSON.stringify(markerData)
         });
-
+        // check the response
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-
+        // await command is the other half of the pormise signaled by async
         const result = await response.json();
-        console.log('Backend Response:', result);
+        console.log('Backend Response: (Marker Save', result);
     } catch (error) {
         console.error('Failed to save polygon:', error);
     }
 }
+
 
 // Listen for ANT layer creation event from Geoman
 // SO this is the code that is always waiting for an event to happen,
 // it waits for the event and then delegates it to the propper function.
 //map.on('pm:create', handleCreatedLayer);
 map.on('pm:create', (e) => {
-    // 1. Process and set up the popup logic (from our last successful step)
-    handleCreatedLayer(e); // Assuming you kept the previous function structure
+    const layer = e.layer;
     
-    // 2. SEND THE DATA TO THE PYTHON BACKEND
-    savePolygonToBackend(e.layer); 
-});
+    // 1. SAVE marker to backend (Optional, but should be here if you want persistence)
+    saveMarkerToBackend(layer); 
+    
+    // 2. NEW/FIXED: Bind the INITIAL static popup content
+    // You can use a generic message or the coordinate function here.
+    const initialPopupContent = `Marker at: ${layer.getLatLng().lat.toFixed(4)}, ${layer.getLatLng().lng.toFixed(4)}`;
+    layer.bindPopup(initialPopupContent); // <--- THIS LINE IS CRUCIAL
 
+    // 3. Attach the weather fetch logic to the 'popupopen' event
+    layer.on('popupopen', () => {
+        // This is where fetchAndDisplayWeather runs
+        fetchAndDisplayWeather(layer);
+    });
+});
