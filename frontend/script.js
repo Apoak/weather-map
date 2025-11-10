@@ -50,22 +50,50 @@ async function fetchAndDisplayWeather(layer) {
     }
 } 
 
+
 function generateForecastHTML(data){
     const hourly = data.hourly
-    // Just display the first few hours of temperature and precipitation FOR NOW
+    
     let html = `<h4>5-Day Forecast (GFS Model)</h4>
                 <p>Timezone: ${data.timezone}</p>
                 <hr>
                 <table>
-                    <tr><th>Time</th><th>Temp (°C)</th><th>Rain (mm)</th></tr>`;
+                    <tr><th>Time</th><th>Temp (°F)</th><th>Rain (in)</th><th>Rain Prob (%)</th></tr>`;
 
-    for (let i = 0; i < 6; i++) { // Show 6 hours
-        const time = new Date(hourly.time[i]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        html += `<tr>
-                    <td>${time}</td>
-                    <td>${hourly.temperature_2m[i].toFixed(1)}</td>
-                    <td>${hourly.precipitation[i].toFixed(1)}</td>
-                 </tr>`;
+    for (let i = 0; i < hourly.time.length; i++) { // Show 6 hours
+        const dateObj = new Date(hourly.time[i]);
+
+        //formatting:
+        // const dateStr = dateObj.toLocaleDateString('en-US', {
+        //     month: '2-digit',
+        //     day: '2-digit',
+        //     year: 'numeric'
+        // });
+        
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'});
+        //const time = new Date(hourly.time[i]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+         // CRITICAL CHECK: Midnight (00:00) detection
+        if (dateObj.getHours() === 0){
+            // 1. Insert the Date Header Row
+             // colspan="4" ensures the date spans all four columns (Time, Temp, Rain, Prob)
+             // Apply distinct styling (e.g., a background color or border)
+             const dayOfWeekStr = dateObj.toLocaleDateString('en-US', {
+                 weekday: 'long' // Options: 'long' (Monday), 'short' (Mon), or 'narrow' (M)
+             });
+             
+             html += `
+             <tr class="date-header-row">
+                 <td colspan="4"><strong>${dayOfWeekStr}</strong></td>
+             </tr>`;
+        } 
+        // 2. Insert the Hourly Data Row (This will be the 12:00 AM row if above condition was met)
+        // Add a class for potential styling (e.g., thicker border under the date header)
+        html += `<tr class="hourly-data-row">
+                    <td>${timeStr}</td> 
+                    <td>${hourly.temperature_2m[i].toFixed(1)}</td> 
+                    <td>${hourly.precipitation[i].toFixed(2)}</td> 
+                    <td>${hourly.precipitation_probability[i].toFixed(0)}%</td> 
+                </tr>`;
     }
     html += `</table>`;
     return html;
@@ -210,12 +238,30 @@ map.on('pm:create', (e) => {
     
     // 2. NEW/FIXED: Bind the INITIAL static popup content
     // You can use a generic message or the coordinate function here.
-    const initialPopupContent = `Marker at: ${layer.getLatLng().lat.toFixed(4)}, ${layer.getLatLng().lng.toFixed(4)}`;
-    layer.bindPopup(initialPopupContent); // <--- THIS LINE IS CRUCIAL
+    // const initialPopupContent = `Marker at: ${layer.getLatLng().lat.toFixed(4)}, ${layer.getLatLng().lng.toFixed(4)}`;
+    // layer.bindPopup(initialPopupContent); // <--- THIS LINE IS CRUCIAL
+    layer.bindPopup("<h4>Loading...</h4>", { 
+    className: 'forecast-popup-style',
+    maxWidth: 500 
+    });
 
     // 3. Attach the weather fetch logic to the 'popupopen' event
     layer.on('popupopen', () => {
         // This is where fetchAndDisplayWeather runs
         fetchAndDisplayWeather(layer);
     });
+});
+
+map.on('pm:remove', (e) => {
+    const layer = e.layer;
+    
+    // Check if the layer has the ID saved from the creation POST request
+    const markerId = layer.options.dbId; // Assuming you saved the ID here during creation
+    
+    if (markerId) {
+        // Execute the DELETE call
+        deleteMarkerFromBackend(markerId);
+    } else {
+        console.warn("Removed layer did not have a database ID attached. Not performing backend deletion.");
+    }
 });

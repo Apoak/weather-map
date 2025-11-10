@@ -10,3 +10,64 @@ body {
   height: 100%;
   width: 100%;
 }
+
+/* Target the specific cell (td) within the day header row */
+.forecast-popup-style .date-header-row td {
+    /* CHANGE THIS VALUE to your preferred color */
+    background-color: #3f68b3; /* Example: A medium blue */
+    
+    color: white; /* Keep the text visible */
+    padding: 8px 10px;
+    font-size: 1em;
+    text-align: center;
+    border-bottom: 2px solid #888;
+    
+    /* Ensure no row-stripping color overrides the background */
+    background: #3f68b3 !important; 
+}
+
+/* Scroll feature */
+.forecast-popup-style .leaflet-popup-content {
+  max-height: 350px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* 1. Overall Popup Container and Appearance */
+.forecast-popup-style .leaflet-popup-content-wrapper {
+    background: #2b2b2b; /* Dark background */
+    color: #f0f0f0; /* Light text */
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* 2. Popup Pointer/Tip */
+.forecast-popup-style .leaflet-popup-tip {
+    /* Match the background color of the wrapper */
+    background: #2b2b2b; 
+}
+
+/* 3. Style the Table (Your Forecast Data) */
+.forecast-popup-style table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+
+.forecast-popup-style th, 
+.forecast-popup-style td {
+    padding: 6px 10px;
+    text-align: left;
+    /* Optional: Differentiate header row */
+}
+
+.forecast-popup-style th {
+    background-color: #3d3d3d;
+    font-weight: bold;
+    color: #a0a0a0;
+}
+
+/* 4. Stripe the rows for readability */
+.forecast-popup-style tr:nth-child(even) {
+    background-color: #333;
+}
